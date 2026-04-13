@@ -51,9 +51,9 @@ func checkDate(task *db.Task) error {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	if task.Date == "" {
-		task.Date = today.Format(dateLayout)
+		task.Date = today.Format("20060102")
 	}
-	taskDate, err := time.ParseInLocation(dateLayout, task.Date, today.Location())
+	taskDate, err := time.ParseInLocation("20060102", task.Date, today.Location())
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func checkDate(task *db.Task) error {
 
 	if taskDate.Before(today) {
 		if task.Repeat == "" {
-			task.Date = today.Format(dateLayout)
+			task.Date = today.Format("20060102")
 		} else {
 			task.Date = next
 		}
