@@ -6,6 +6,15 @@ import (
 	"strconv"
 )
 
+const (
+	queryAddTask    = `INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)`
+	queryTasks      = `SELECT id, date, title, comment, repeat FROM scheduler ORDER BY date LIMIT ?`
+	queryGetTask    = `SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`
+	queryUpdateTask = `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`
+	queryDeleteTask = `DELETE FROM scheduler WHERE id = ?`
+	queryUpdateDate = `UPDATE scheduler SET date = ? WHERE id = ?`
+)
+
 type Task struct {
 	ID      string `json:"id"`
 	Date    string `json:"date"`
@@ -16,8 +25,7 @@ type Task struct {
 
 func AddTask(task *Task) (int64, error) {
 	var id int64
-	query := `INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)`
-	res, err := DB.Exec(query, task.Date, task.Title, task.Comment, task.Repeat)
+	res, err := DB.Exec(queryAddTask, task.Date, task.Title, task.Comment, task.Repeat)
 	if err != nil {
 		return id, err
 	}
@@ -29,8 +37,7 @@ func AddTask(task *Task) (int64, error) {
 }
 
 func Tasks(limit int) ([]*Task, error) {
-	rows, err := DB.Query(`SELECT id, date, title, comment, repeat
-						   FROM scheduler ORDER BY date LIMIT ?`, limit)
+	rows, err := DB.Query(queryTasks, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -39,29 +46,20 @@ func Tasks(limit int) ([]*Task, error) {
 	tasks := []*Task{}
 
 	for rows.Next() {
-		var (
-			id      int
-			date    string
-			title   string
-			comment string
-			repeat  string
-		)
+		var task Task
+		var id int
 
-		err := rows.Scan(&id, &date, &title, &comment, &repeat)
+		err := rows.Scan(&id, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err != nil {
 			return nil, err
 		}
 
-		tasks = append(tasks, &Task{
-			ID:      strconv.Itoa(id),
-			Date:    date,
-			Title:   title,
-			Comment: comment,
-			Repeat:  repeat,
-		})
+		task.ID = strconv.Itoa(id)
+		tasks = append(tasks, &task)
 	}
 
 	if err := rows.Err(); err != nil {
+
 		return nil, err
 	}
 
@@ -69,17 +67,10 @@ func Tasks(limit int) ([]*Task, error) {
 }
 
 func GetTask(id string) (*Task, error) {
-	if id == "" {
-		return nil, errors.New("wrong id")
-	}
-
 	var task Task
 	var taskID int
 
-	row := DB.QueryRow(
-		`SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`,
-		id,
-	)
+	row := DB.QueryRow(queryGetTask, id)
 
 	err := row.Scan(&taskID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 	if err != nil {
@@ -94,10 +85,7 @@ func GetTask(id string) (*Task, error) {
 }
 
 func UpdateTask(task *Task) error {
-	query := `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ?
-			  WHERE id = ?`
-
-	res, err := DB.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
+	res, err := DB.Exec(queryUpdateTask, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
 	if err != nil {
 		return err
 	}
@@ -115,11 +103,7 @@ func UpdateTask(task *Task) error {
 }
 
 func DeleteTask(id string) error {
-	if id == "" {
-		return errors.New("wrong id")
-	}
-
-	res, err := DB.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
+	res, err := DB.Exec(queryDeleteTask, id)
 	if err != nil {
 		return err
 	}
@@ -137,7 +121,7 @@ func DeleteTask(id string) error {
 }
 
 func UpdateDate(next string, id string) error {
-	res, err := DB.Exec(`UPDATE scheduler SET date = ? WHERE id = ?`, next, id)
+	res, err := DB.Exec(queryUpdateDate, next, id)
 	if err != nil {
 		return err
 	}
